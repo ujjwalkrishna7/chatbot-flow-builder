@@ -246,7 +246,7 @@ export default function Homepage() {
   return (
     <>
       <div className="mx-16">
-        <div className="w-full mt-5 flex flex-col md:flex-row items-start justify-between gap-4 ">
+        <div className="w-full mt-5 flex flex-col-reverse  md:flex-row items-start justify-between gap-4 ">
           {/* <Container> */}
           <div className="w-full md:w-8/12">
             <div className="w-full relative overflow-hidden rounded-[2.4rem] border border-transparent-white bg-[radial-gradient(ellipse_at_center,rgba(var(--feature-color),0.15),transparent)] py-6 px-8 before:pointer-events-none before:absolute before:inset-0 before:bg-glass-gradient md:rounded-[4.8rem] md:p-14">
@@ -317,7 +317,7 @@ export default function Homepage() {
                   </>
                 ) : (
                   <>
-                    <div className=" bg-white/5 border border-white/5 rounded-xl py-2 px-3 flex items-center justify-between gap-2 w-full">
+                    <div className=" bg-white/5 border border-white/5 rounded-xl py-2 px-3 flex items-center justify-between gap-2 w-full flex-col md:flex-row">
                       <div className="flex gap-2 items-center">
                         <Button
                           className=""
@@ -352,7 +352,7 @@ export default function Homepage() {
                       </div>
 
                       <Button
-                        className="ml-2"
+                        className=""
                         variant="secondary"
                         size="medium"
                         onClick={saveHandler}
