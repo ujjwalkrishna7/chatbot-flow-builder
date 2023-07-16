@@ -1,4 +1,4 @@
-<img src="public/demo.png" alt="Flow-builder" title="Chatbot Flow Builder" width="400" />
+<img src="public/demo.png" alt="Flow-builder" title="Chatbot Flow Builder" width="100%" />
 
 This is a flow chart builder for chatbots made with Typescript and NextJS.
 
