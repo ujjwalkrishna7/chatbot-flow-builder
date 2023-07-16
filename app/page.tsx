@@ -1,113 +1,394 @@
-import Image from 'next/image'
+"use client";
 
-export default function Home() {
+import React, { useState, useRef, useCallback, useEffect } from "react";
+import ReactFlow, {
+  ReactFlowProvider,
+  addEdge,
+  useNodesState,
+  useEdgesState,
+  Controls,
+  getIncomers,
+  getOutgoers,
+  getConnectedEdges,
+} from "reactflow";
+import "reactflow/dist/style.css";
+import { Button, Highlight } from "@/components/button";
+import { Icon } from "@iconify/react";
+import MessageNode from "@/components/messages-node";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import messagesNode from "@/components/messages-node";
+
+const nodeTypes = {
+  messageNode: MessageNode,
+};
+
+const initNodes = [
+  {
+    id: "0",
+    type: "messageNode",
+    data: {
+      id: "0",
+      selectedNode: null,
+      setSelectedNode: null,
+      message: "Inital Node",
+    },
+    position: { x: 0, y: 0 },
+  },
+];
+
+let id = 1;
+const getId = () => `${id++}`;
+
+export default function Homepage() {
+  const [selectedNode, setSelectedNode] = useState("");
+
+  const reactFlowWrapper = useRef<any>(null);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
+  const [saved, setSaved] = useState<any>();
+
+  const [nodeMessages, setNodeMessages] = useState<string[]>(["Inital Node"]);
+
+  useEffect(() => {
+    setNodes((nds) =>
+      nds.map((node: any, index) => {
+        node.data = {
+          ...node.data,
+          selectedNode: selectedNode,
+          setSelectedNode: setSelectedNode,
+          message: nodeMessages[index],
+        };
+
+        return node;
+      })
+    );
+  }, [nodeMessages, setNodes, selectedNode]);
+
+  const onConnect = useCallback(
+    (params: any) => setEdges((eds) => addEdge(params, eds)),
+    []
+  );
+
+  const onNodesDelete = useCallback(
+    (deleted: any) => {
+      let msgArray: any = [];
+      nodeMessages.map((msg: any) => {
+        if (deleted[0].data.message !== msg) {
+          msgArray.push(msg);
+        }
+      });
+      setNodeMessages(msgArray);
+      //   setEdges(
+      //     deleted.reduce((acc: any, node: any) => {
+      //       const incomers = getIncomers(node, nodes, edges);
+      //       const outgoers = getOutgoers(node, nodes, edges);
+      //       const connectedEdges = getConnectedEdges([node], edges);
+
+      //       const remainingEdges = acc.filter(
+      //         (edge: any) => !connectedEdges.includes(edge)
+      //       );
+
+      //       const createdEdges = incomers.flatMap(({ id: source }) =>
+      //         outgoers.map(({ id: target }) => ({
+      //           id: `${source}->${target}`,
+      //           source,
+      //           target,
+      //         }))
+      //       );
+
+      //       return [...remainingEdges, ...createdEdges];
+      //     }, edges)
+      //   );
+    },
+    [nodes, edges]
+  );
+
+  const onDragOver = useCallback((event: any) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  }, []);
+
+  const onDrop = useCallback(
+    (event: any) => {
+      event.preventDefault();
+
+      const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
+      const type = event.dataTransfer.getData("application/reactflow");
+
+      // check if the dropped element is valid
+      if (typeof type === "undefined" || !type) {
+        return;
+      }
+
+      const position = reactFlowInstance.project({
+        x: event.clientX - reactFlowBounds.left,
+        y: event.clientY - reactFlowBounds.top,
+      });
+      const id = getId();
+      let message = `Message ${id}`;
+      nodeMessages.push(message);
+      const newNode = {
+        id: id,
+        type,
+        position,
+        data: {
+          id: id,
+          message: message,
+          selectedNode: selectedNode,
+          setSelectedNode: setSelectedNode,
+        },
+      };
+
+      setNodes((nds: any) => nds.concat(newNode));
+    },
+    [reactFlowInstance]
+  );
+
+  const onDragStart = (event: any, nodeType: any) => {
+    event.dataTransfer.setData("application/reactflow", nodeType);
+    event.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleChangeMessage = (e: any) => {
+    let newStack: any = [];
+    nodeMessages.map((value, index) => {
+      if (index === parseInt(selectedNode)) {
+        newStack.push(e.target.value);
+      } else {
+        newStack.push(value);
+      }
+    });
+    setNodeMessages(newStack);
+  };
+
+  const notifySuccess = (msg: string) =>
+    toast.success(msg, {
+      position: "top-center",
+      autoClose: 5000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+      progress: undefined,
+      theme: "dark",
+    });
+
+  const notifyError = (msg: string) =>
+    toast.error(msg, {
+      position: "top-center",
+      autoClose: 5000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+      progress: undefined,
+      theme: "dark",
+    });
+
+  const saveHandler = () => {
+    if (nodes.length === 1) {
+      notifySuccess("Saved Successfully");
+    } else {
+      let errorFound = 0;
+      nodes.map((node) => {
+        const connectedEdges = getConnectedEdges([node], edges);
+        if (connectedEdges.length === 0) {
+          errorFound++;
+        }
+      });
+      if (errorFound > 0) {
+        notifyError("Cannot Save Flow");
+      } else {
+        setSaved({
+          nodes: nodes,
+          edges: edges,
+          nodeMessages: nodeMessages,
+          id: id,
+        });
+        notifySuccess("Saved Successfully");
+      }
+    }
+  };
+
+  const resetHandler = () => {
+    try {
+      setNodes(initNodes);
+      setEdges([]);
+      setNodeMessages(["Initail Node"]);
+      setSelectedNode("");
+      id = 1;
+      notifySuccess("Reset Successfully");
+    } catch (e) {
+      notifyError("Failed");
+    }
+  };
+
+  const loadHandler = () => {
+    try {
+      setNodes(saved.nodes);
+      setEdges(saved.edges);
+      setNodeMessages(saved.nodeMessages);
+      setSelectedNode("");
+      id = saved.id;
+      notifySuccess("Load Success");
+    } catch (e) {
+      notifyError("Failed");
+    }
+  };
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+    <>
+      <div className="mx-16">
+        <div className="w-full mt-5 flex flex-col md:flex-row items-start justify-between gap-4 ">
+          {/* <Container> */}
+          <div className="w-full md:w-8/12">
+            <div className="w-full relative overflow-hidden rounded-[2.4rem] border border-transparent-white bg-[radial-gradient(ellipse_at_center,rgba(var(--feature-color),0.15),transparent)] py-6 px-8 before:pointer-events-none before:absolute before:inset-0 before:bg-glass-gradient md:rounded-[4.8rem] md:p-14">
+              <ReactFlowProvider>
+                <div
+                  className="w-full reactflow-wrapper h-[600px] rounded-2xl"
+                  ref={reactFlowWrapper}
+                >
+                  <ReactFlow
+                    nodes={nodes}
+                    edges={edges}
+                    onNodesChange={onNodesChange}
+                    onEdgesChange={onEdgesChange}
+                    onNodesDelete={onNodesDelete}
+                    onConnect={onConnect}
+                    onInit={setReactFlowInstance}
+                    onDrop={onDrop}
+                    onDragOver={onDragOver}
+                    nodeTypes={nodeTypes}
+                    fitView
+                    proOptions={{ hideAttribution: true }}
+                  >
+                    <Controls />
+                  </ReactFlow>
+                </div>
+              </ReactFlowProvider>
+            </div>
+          </div>
+          {/* </Container> */}
+
+          {/* <Container> */}
+          <div className="w-full md:w-4/12 ">
+            <div
+              className="relative aspect-[1.1/1] overflow-hidden rounded-[2.4rem] border
+             border-transparent-white bg-[radial-gradient(ellipse_at_center,rgba(var(--feature-color),0.15),transparent)] py-6 px-5
+             before:pointer-events-none before:absolute before:inset-0 before:bg-glass-gradient md:rounded-[4.8rem] "
+            >
+              <div className="w-full flex flex-col items-start gap-2 ">
+                {selectedNode ? (
+                  <>
+                    <div className=" bg-white/5 rounded-xl py-2 px-3 flex items-center justify-between gap-2 w-full">
+                      <Icon
+                        onClick={() => {
+                          setSelectedNode("");
+                        }}
+                        width={20}
+                        className="cursor-pointer"
+                        icon="ion:arrow-back"
+                      />
+
+                      <p className=" text-sm font-medium">Message</p>
+                      <div> </div>
+                    </div>
+                    <p className="font-medium text-md mt-4 text-white/50">
+                      Enter Message :
+                    </p>
+                    <div className="w-full">
+                      <textarea
+                        value={nodeMessages[parseInt(selectedNode)]}
+                        onChange={(e) => {
+                          handleChangeMessage(e);
+                        }}
+                        className="w-full flex justify-between cursor-pointer items-center transition 
+                         gap-1 px-5 py-3 rounded-full text-zinc-50 bg-white/5 text-xs font-
+                          disabled:bg-white/5 disabled:text-zinc-50 hover:bg-white/10 focus:outline-none"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 justify-between w-full">
+                      <div className="flex gap-1 items-center">
+                        <Button
+                          className="ml-2"
+                          variant="secondary"
+                          size="medium"
+                          onClick={resetHandler}
+                        >
+                          <Icon
+                            width={15}
+                            className="my-2 mr-2"
+                            icon="material-symbols:device-reset"
+                          />
+
+                          <span>Reset</span>
+                        </Button>
+                        {saved && (
+                          <Button
+                            className="ml-2"
+                            variant="secondary"
+                            size="medium"
+                            onClick={loadHandler}
+                          >
+                            <Icon
+                              width={15}
+                              className="my-2 mr-2"
+                              icon="mingcute:upload-fill"
+                            />
+
+                            <span>Load From Save</span>
+                          </Button>
+                        )}
+                      </div>
+
+                      <Button
+                        className="ml-2"
+                        variant="secondary"
+                        size="medium"
+                        onClick={saveHandler}
+                      >
+                        <Icon
+                          width={15}
+                          className="my-2 mr-2"
+                          icon="ic:round-save"
+                        />
+
+                        <span>Save</span>
+                      </Button>
+                    </div>
+                    <div className="text-[11px] text-white/30  px-3">
+                      Drag and Drop below elements to the left Panel to add a
+                      Node :
+                    </div>
+
+                    <div
+                      onDragStart={(event) => onDragStart(event, "messageNode")}
+                      draggable
+                    >
+                      <Button className="ml-2" variant="secondary" size="large">
+                        <Highlight className="uppercase">
+                          <Icon
+                            width={20}
+                            className="my-2"
+                            icon="icon-park-solid:message"
+                          />
+                        </Highlight>
+                        <span>New Message</span>
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+          {/* </Container> */}
         </div>
       </div>
-
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore the Next.js 13 playground.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  )
+      <ToastContainer />
+    </>
+  );
 }
