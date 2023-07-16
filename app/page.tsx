@@ -31,7 +31,7 @@ const initNodes = [
       id: "0",
       selectedNode: null,
       setSelectedNode: null,
-      message: "Inital Node",
+      message: "Initial Node",
     },
     position: { x: 0, y: 0 },
   },
@@ -49,22 +49,39 @@ export default function Homepage() {
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const [saved, setSaved] = useState<any>();
 
-  const [nodeMessages, setNodeMessages] = useState<string[]>(["Inital Node"]);
+  const [nodeMessages, setNodeMessages] = useState<any>([
+    { id: "0", message: "Initial Node" },
+  ]);
 
   useEffect(() => {
     setNodes((nds) =>
       nds.map((node: any, index) => {
+        let message = selectMessage(node.data.id);
         node.data = {
           ...node.data,
           selectedNode: selectedNode,
           setSelectedNode: setSelectedNode,
-          message: nodeMessages[index],
+          message: message,
         };
 
         return node;
       })
     );
   }, [nodeMessages, setNodes, selectedNode]);
+
+  const selectMessage = (id: any) => {
+    let message = "";
+
+    nodeMessages.map((msg: any) => {
+      if (id === msg.id) {
+        message = msg.message;
+      }
+    });
+    console.log(message);
+    return message;
+  };
+  console.log(selectedNode);
+  console.log(nodeMessages);
 
   const onConnect = useCallback(
     (params: any) => setEdges((eds) => addEdge(params, eds)),
@@ -75,8 +92,10 @@ export default function Homepage() {
     (deleted: any) => {
       let msgArray: any = [];
       nodeMessages.map((msg: any) => {
-        if (deleted[0].data.message !== msg) {
+        if (deleted[0].data.id !== msg.id) {
           msgArray.push(msg);
+        } else {
+          msgArray.push({ id: msg.id, message: "" });
         }
       });
       setNodeMessages(msgArray);
@@ -110,41 +129,40 @@ export default function Homepage() {
     event.dataTransfer.dropEffect = "move";
   }, []);
 
-  const onDrop = useCallback(
-    (event: any) => {
-      event.preventDefault();
+  const onDrop = (event: any) => {
+    event.preventDefault();
 
-      const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
-      const type = event.dataTransfer.getData("application/reactflow");
+    const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
+    const type = event.dataTransfer.getData("application/reactflow");
 
-      // check if the dropped element is valid
-      if (typeof type === "undefined" || !type) {
-        return;
-      }
+    // check if the dropped element is valid
+    if (typeof type === "undefined" || !type) {
+      return;
+    }
 
-      const position = reactFlowInstance.project({
-        x: event.clientX - reactFlowBounds.left,
-        y: event.clientY - reactFlowBounds.top,
-      });
-      const id = getId();
-      let message = `Message ${id}`;
-      nodeMessages.push(message);
-      const newNode = {
+    const position = reactFlowInstance.project({
+      x: event.clientX - reactFlowBounds.left,
+      y: event.clientY - reactFlowBounds.top,
+    });
+    const id = getId();
+    let message = `Message ${id}`;
+    let msgArray: any = nodeMessages;
+    msgArray.push({ id: id, message: message });
+    setNodeMessages(msgArray);
+    const newNode = {
+      id: id,
+      type,
+      position,
+      data: {
         id: id,
-        type,
-        position,
-        data: {
-          id: id,
-          message: message,
-          selectedNode: selectedNode,
-          setSelectedNode: setSelectedNode,
-        },
-      };
+        message: message,
+        selectedNode: selectedNode,
+        setSelectedNode: setSelectedNode,
+      },
+    };
 
-      setNodes((nds: any) => nds.concat(newNode));
-    },
-    [reactFlowInstance]
-  );
+    setNodes((nds: any) => nds.concat(newNode));
+  };
 
   const onDragStart = (event: any, nodeType: any) => {
     event.dataTransfer.setData("application/reactflow", nodeType);
@@ -153,13 +171,14 @@ export default function Homepage() {
 
   const handleChangeMessage = (e: any) => {
     let newStack: any = [];
-    nodeMessages.map((value, index) => {
-      if (index === parseInt(selectedNode)) {
-        newStack.push(e.target.value);
+    nodeMessages.map((value: any) => {
+      if (value.id === selectedNode) {
+        newStack.push({ id: value.id, message: e.target.value });
       } else {
         newStack.push(value);
       }
     });
+
     setNodeMessages(newStack);
   };
 
@@ -222,7 +241,7 @@ export default function Homepage() {
     try {
       setNodes(initNodes);
       setEdges([]);
-      setNodeMessages(["Initail Node"]);
+      setNodeMessages([{ id: "0", message: "Initial Node" }]);
       setSelectedNode("");
       id = 1;
       notifySuccess("Reset Successfully");
@@ -305,7 +324,7 @@ export default function Homepage() {
                     </p>
                     <div className="w-full">
                       <textarea
-                        value={nodeMessages[parseInt(selectedNode)]}
+                        value={nodeMessages[parseInt(selectedNode)].message}
                         onChange={(e) => {
                           handleChangeMessage(e);
                         }}
