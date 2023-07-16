@@ -7,56 +7,53 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
   Controls,
-  getIncomers,
-  getOutgoers,
   getConnectedEdges,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Button, Highlight } from "@/components/button";
-import { Icon } from "@iconify/react";
-import MessageNode from "@/components/messages-node";
-import { ToastContainer, toast } from "react-toastify";
+import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import messagesNode from "@/components/messages-node";
-
-const nodeTypes = {
-  messageNode: MessageNode,
-};
-
-const initNodes = [
-  {
-    id: "0",
-    type: "messageNode",
-    data: {
-      id: "0",
-      selectedNode: null,
-      setSelectedNode: null,
-      message: "Initial Node",
-    },
-    position: { x: 0, y: 0 },
-  },
-];
+import { SettingsPanel } from "@/components/sections/SettingsPanel";
+import { notifyError, notifySuccess } from "@/components/Helpers/Notification";
+import {
+  initNodes,
+  nodeTypes,
+} from "@/components/constants/WorkflowNodeConstants";
 
 let id = 1;
 const getId = () => `${id++}`;
 
 export default function Homepage() {
-  const [selectedNode, setSelectedNode] = useState("");
-
+  //Reference for the flow wrapper
   const reactFlowWrapper = useRef<any>(null);
+
+  //States provided by React Flow
   const [nodes, setNodes, onNodesChange] = useNodesState(initNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
+
+  //React State to store Saved Workflows
   const [saved, setSaved] = useState<any>();
 
+  //React state to store the currently selected Node
+  const [selectedNode, setSelectedNode] = useState("");
+
+  //React State to store Messages
   const [nodeMessages, setNodeMessages] = useState<any>([
     { id: "0", message: "Initial Node" },
   ]);
 
+  //Function to handle edge connections
+  const onConnect = useCallback(
+    (params: any) => setEdges((eds) => addEdge(params, eds)),
+    []
+  );
+
+  //This function is called when there is a change in [nodeMessages, setNodes, selectedNode] values to
+  // recompute the Nodes when there is a change in any of the following states
   useEffect(() => {
     setNodes((nds) =>
-      nds.map((node: any, index) => {
-        let message = selectMessage(node.data.id);
+      nds.map((node: any) => {
+        let message = connectToMessage(node.data.id);
         node.data = {
           ...node.data,
           selectedNode: selectedNode,
@@ -69,25 +66,18 @@ export default function Homepage() {
     );
   }, [nodeMessages, setNodes, selectedNode]);
 
-  const selectMessage = (id: any) => {
+  // This function acts to act as a connection between the nodeMessages Array and the state of the Nodes
+  const connectToMessage = (id: any) => {
     let message = "";
-
     nodeMessages.map((msg: any) => {
       if (id === msg.id) {
         message = msg.message;
       }
     });
-    console.log(message);
     return message;
   };
-  console.log(selectedNode);
-  console.log(nodeMessages);
 
-  const onConnect = useCallback(
-    (params: any) => setEdges((eds) => addEdge(params, eds)),
-    []
-  );
-
+  // This fucntion is used to filter the Messages Array when a Node is Deleted
   const onNodesDelete = useCallback(
     (deleted: any) => {
       let msgArray: any = [];
@@ -99,31 +89,24 @@ export default function Homepage() {
         }
       });
       setNodeMessages(msgArray);
-      //   setEdges(
-      //     deleted.reduce((acc: any, node: any) => {
-      //       const incomers = getIncomers(node, nodes, edges);
-      //       const outgoers = getOutgoers(node, nodes, edges);
-      //       const connectedEdges = getConnectedEdges([node], edges);
-
-      //       const remainingEdges = acc.filter(
-      //         (edge: any) => !connectedEdges.includes(edge)
-      //       );
-
-      //       const createdEdges = incomers.flatMap(({ id: source }) =>
-      //         outgoers.map(({ id: target }) => ({
-      //           id: `${source}->${target}`,
-      //           source,
-      //           target,
-      //         }))
-      //       );
-
-      //       return [...remainingEdges, ...createdEdges];
-      //     }, edges)
-      //   );
     },
     [nodes, edges]
   );
 
+  // This function handles the change Message Values
+  const handleChangeMessage = (e: any) => {
+    let newStack: any = [];
+    nodeMessages.map((value: any) => {
+      if (value.id === selectedNode) {
+        newStack.push({ id: value.id, message: e.target.value });
+      } else {
+        newStack.push(value);
+      }
+    });
+    setNodeMessages(newStack);
+  };
+
+  // Drag And Drop Handlers Start
   const onDragOver = useCallback((event: any) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
@@ -168,44 +151,9 @@ export default function Homepage() {
     event.dataTransfer.setData("application/reactflow", nodeType);
     event.dataTransfer.effectAllowed = "move";
   };
+  // Drag And Drop Handlers End
 
-  const handleChangeMessage = (e: any) => {
-    let newStack: any = [];
-    nodeMessages.map((value: any) => {
-      if (value.id === selectedNode) {
-        newStack.push({ id: value.id, message: e.target.value });
-      } else {
-        newStack.push(value);
-      }
-    });
-
-    setNodeMessages(newStack);
-  };
-
-  const notifySuccess = (msg: string) =>
-    toast.success(msg, {
-      position: "top-center",
-      autoClose: 5000,
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: true,
-      draggable: true,
-      progress: undefined,
-      theme: "dark",
-    });
-
-  const notifyError = (msg: string) =>
-    toast.error(msg, {
-      position: "top-center",
-      autoClose: 5000,
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: true,
-      draggable: true,
-      progress: undefined,
-      theme: "dark",
-    });
-
+  // Save Reset and Load Handlers Start
   const saveHandler = () => {
     if (nodes.length === 1) {
       setSaved({
@@ -262,6 +210,8 @@ export default function Homepage() {
       notifyError("Failed");
     }
   };
+  // Save Reset and Load Handlers End
+
   return (
     <>
       <div className="mx-5 md:mx-16">
@@ -294,123 +244,20 @@ export default function Homepage() {
               </ReactFlowProvider>
             </div>
           </div>
-          {/* </Container> */}
 
-          {/* <Container> */}
           <div className="w-full md:w-4/12 ">
-            <div
-              className="relative aspect-[1.1/1] overflow-hidden rounded-[2.4rem] border
-             border-transparent-white bg-[radial-gradient(ellipse_at_center,rgba(var(--feature-color),0.15),transparent)] py-6 px-5
-             before:pointer-events-none before:absolute before:inset-0 before:bg-glass-gradient md:rounded-[4.8rem] "
-            >
-              <div className="w-full flex flex-col items-start gap-2 ">
-                {selectedNode ? (
-                  <>
-                    <div className=" bg-white/5 border border-white/5 rounded-xl py-2 px-3 flex items-center justify-between gap-2 w-full">
-                      <Icon
-                        onClick={() => {
-                          setSelectedNode("");
-                        }}
-                        width={20}
-                        className="cursor-pointer"
-                        icon="ion:arrow-back"
-                      />
-
-                      <p className=" text-sm font-medium">Message</p>
-                      <div> </div>
-                    </div>
-                    <p className="font-medium text-md mt-4 text-white/50">
-                      Enter Message :
-                    </p>
-                    <div className="w-full">
-                      <textarea
-                        value={nodeMessages[parseInt(selectedNode)].message}
-                        onChange={(e) => {
-                          handleChangeMessage(e);
-                        }}
-                        className="w-full flex justify-between cursor-pointer items-center transition 
-                         gap-1 px-5 py-3 rounded-full text-zinc-50 bg-white/5 text-xs font-
-                          disabled:bg-white/5 disabled:text-zinc-50 hover:bg-white/10 focus:outline-none"
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className=" bg-white/5 border border-white/5 rounded-xl py-2 px-3 flex items-center justify-between gap-2 w-full overflow-x-scroll hide-scrollbar ">
-                      <div className="flex gap-2 items-center">
-                        <Button
-                          className=""
-                          variant="secondary"
-                          size="medium"
-                          onClick={resetHandler}
-                        >
-                          <Icon
-                            width={15}
-                            className="my-2 mr-2"
-                            icon="material-symbols:device-reset"
-                          />
-
-                          <span>Reset</span>
-                        </Button>
-                        {saved && (
-                          <Button
-                            className=""
-                            variant="secondary"
-                            size="medium"
-                            onClick={loadHandler}
-                          >
-                            <Icon
-                              width={15}
-                              className="my-2 mr-2"
-                              icon="mingcute:upload-fill"
-                            />
-
-                            <span>Load</span>
-                          </Button>
-                        )}
-                      </div>
-
-                      <Button
-                        className=""
-                        variant="secondary"
-                        size="medium"
-                        onClick={saveHandler}
-                      >
-                        <Icon
-                          width={15}
-                          className="my-2 mr-2"
-                          icon="ic:round-save"
-                        />
-
-                        <span>Save</span>
-                      </Button>
-                    </div>
-                    <div className="text-[11px] text-white/30  px-3">
-                      Drag and Drop below elements to the left Panel to add a
-                      Node :
-                    </div>
-
-                    <div
-                      onDragStart={(event) => onDragStart(event, "messageNode")}
-                      draggable
-                    >
-                      <Button className="ml-2" variant="secondary" size="large">
-                        <Highlight className="uppercase">
-                          <Icon
-                            width={20}
-                            className="my-2"
-                            icon="icon-park-solid:message"
-                          />
-                        </Highlight>
-                        <span>New Message</span>
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
+            <SettingsPanel
+              selectedNode={selectedNode}
+              setSelectedNode={setSelectedNode}
+              nodeMessages={nodeMessages}
+              handleChangeMessage={handleChangeMessage}
+              saved={saved}
+              saveHandler={saveHandler}
+              onDragStart={onDragStart}
+              loadHandler={loadHandler}
+              resetHandler={resetHandler}
+            />
           </div>
-          {/* </Container> */}
         </div>
       </div>
       <ToastContainer />
