@@ -317,7 +317,7 @@ export default function Homepage() {
                   </>
                 ) : (
                   <>
-                    <div className=" bg-white/5 border border-white/5 rounded-xl py-2 px-3 flex items-center justify-between gap-2 w-full overflow-x-scroll ">
+                    <div className=" bg-white/5 border border-white/5 rounded-xl py-2 px-3 flex items-center justify-between gap-2 w-full overflow-x-scroll hide-scrollbar ">
                       <div className="flex gap-2 items-center">
                         <Button
                           className=""
