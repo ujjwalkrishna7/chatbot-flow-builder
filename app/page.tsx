@@ -189,6 +189,12 @@ export default function Homepage() {
 
   const saveHandler = () => {
     if (nodes.length === 1) {
+      setSaved({
+        nodes: nodes,
+        edges: edges,
+        nodeMessages: nodeMessages,
+        id: id,
+      });
       notifySuccess("Saved Successfully");
     } else {
       let errorFound = 0;
@@ -281,7 +287,7 @@ export default function Homepage() {
               <div className="w-full flex flex-col items-start gap-2 ">
                 {selectedNode ? (
                   <>
-                    <div className=" bg-white/5 rounded-xl py-2 px-3 flex items-center justify-between gap-2 w-full">
+                    <div className=" bg-white/5 border border-white/5 rounded-xl py-2 px-3 flex items-center justify-between gap-2 w-full">
                       <Icon
                         onClick={() => {
                           setSelectedNode("");
@@ -311,10 +317,10 @@ export default function Homepage() {
                   </>
                 ) : (
                   <>
-                    <div className="flex items-center gap-2 justify-between w-full">
-                      <div className="flex gap-1 items-center">
+                    <div className=" bg-white/5 border border-white/5 rounded-xl py-2 px-3 flex items-center justify-between gap-2 w-full">
+                      <div className="flex gap-2 items-center">
                         <Button
-                          className="ml-2"
+                          className=""
                           variant="secondary"
                           size="medium"
                           onClick={resetHandler}
@@ -329,7 +335,7 @@ export default function Homepage() {
                         </Button>
                         {saved && (
                           <Button
-                            className="ml-2"
+                            className=""
                             variant="secondary"
                             size="medium"
                             onClick={loadHandler}
@@ -340,7 +346,7 @@ export default function Homepage() {
                               icon="mingcute:upload-fill"
                             />
 
-                            <span>Load From Save</span>
+                            <span>Load</span>
                           </Button>
                         )}
                       </div>
